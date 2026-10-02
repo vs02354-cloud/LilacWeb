@@ -132,6 +132,7 @@ export const teamApi = {
 // Dashboard & Auth
 export const dashboardApi = {
   getStats: () => api.get('/dashboard/stats'),
+  updateStage: (type, id, stage) => api.patch(`/dashboard/submissions/${type}/${id}/stage`, { stage }),
 };
 
 export const authApi = {
