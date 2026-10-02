@@ -26,7 +26,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Gradle Cache
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install Dependencies
@@ -35,15 +35,15 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Sync Capacitor Android Project
-        run: npx cap sync android
+      - name: Sync Capacitor Web Assets
+        run: npx --yes @capacitor/cli copy android
 
       - name: Grant Execute Permission to Gradle Wrapper
         run: chmod +x android/gradlew
 
       - name: Build Android APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Prepare APK Output
         run: |
