@@ -1,0 +1,10 @@
+{
+  "appId": "com.lilactechsys.app",
+  "appName": "LilacTechSys",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  }
+}
