@@ -80,6 +80,7 @@ function App() {
                 <Route path="/blog/:slug" element={<BlogDetail />} />
                 <Route path="/careers" element={<Careers />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/quote" element={<RequestQuote />} />
                 <Route path="/request-quote" element={<RequestQuote />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
