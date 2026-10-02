@@ -113,7 +113,7 @@ const AdminLayout = () => {
           {/* Quick External Swagger Docs Link */}
           <div className="px-4 pb-2">
             <a
-              href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/swagger`}
+              href={`${import.meta.env.VITE_API_URL || 'https://lilac-dgwy.onrender.com'}/swagger`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200/70 dark:border-purple-800/40 hover:bg-purple-100/80 dark:hover:bg-purple-900/60 transition-all group"

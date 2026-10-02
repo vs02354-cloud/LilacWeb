@@ -204,7 +204,7 @@ const AdminDashboard = () => {
 
           <div className="flex items-center gap-3">
             <a
-              href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/swagger`}
+              href={`${import.meta.env.VITE_API_URL || 'https://lilac-dgwy.onrender.com'}/swagger`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800/60 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all cursor-pointer"
