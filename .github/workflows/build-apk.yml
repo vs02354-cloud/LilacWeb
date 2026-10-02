@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -26,27 +26,26 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Install NPM Dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: npm install
 
       - name: Build Web Application
         run: npm run build
 
-      - name: Sync Capacitor Android
+      - name: Sync Capacitor Android Project
         run: npx cap sync android
 
-      - name: Make Gradle Wrapper Executable
+      - name: Grant Execute Permission to Gradle Wrapper
         run: chmod +x android/gradlew
 
-      - name: Build Android APK with Gradle
-        run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace
+      - name: Build Android APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK Output
+      - name: Prepare APK Output
         run: |
           mkdir -p output
           cp android/app/build/outputs/apk/debug/app-debug.apk output/LilacTechSys-debug.apk
