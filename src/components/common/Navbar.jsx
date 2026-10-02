@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight, Sparkles, Layers, ShieldCheck, UserCheck } from 'lucide-react';
+import { Menu, X, ArrowRight, Sparkles, Layers, ShieldCheck, UserCheck, LogIn, LayoutDashboard } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -89,33 +89,60 @@ const Navbar = () => {
           </nav>
 
           {/* Right Action Items */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2.5">
             <ThemeToggle />
 
+            {/* Admin Login / Dashboard Quick Button */}
             {isAuthenticated ? (
               <Link
                 to="/admin/dashboard"
                 id="navbar-admin-btn"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/40 text-sm font-semibold transition-all"
+                title="Admin Dashboard"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-300 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-xs font-bold transition-all shadow-sm"
               >
-                <UserCheck className="w-4 h-4 text-emerald-500" />
-                <span>Admin Panel</span>
+                <LayoutDashboard className="w-4 h-4 text-[#9B7EDE]" />
+                <span>Dashboard</span>
               </Link>
             ) : (
               <Link
-                to="/quote"
-                id="navbar-quote-btn"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#9B7EDE] to-[#4B2E83] text-white text-sm font-semibold shadow-md shadow-purple-500/25 hover:shadow-lg hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                to="/admin/login"
+                id="navbar-login-btn"
+                title="Admin Portal Login"
+                aria-label="Admin Login"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-white/80 dark:bg-purple-950/40 text-slate-700 dark:text-purple-200 hover:text-purple-600 dark:hover:text-purple-300 hover:border-purple-300 dark:hover:border-purple-800 shadow-sm backdrop-blur-md transition-all text-xs font-bold hover:scale-[1.03] active:scale-[0.98]"
               >
-                <span>Request a Quote</span>
-                <ArrowRight className="w-4 h-4" />
+                <LogIn className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span>Login</span>
               </Link>
             )}
+
+            {/* Request a Quote Button */}
+            <Link
+              to="/quote"
+              id="navbar-quote-btn"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#9B7EDE] to-[#4B2E83] text-white text-xs sm:text-sm font-semibold shadow-md shadow-purple-500/25 hover:shadow-lg hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+            >
+              <span>Request a Quote</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Action Controls */}
           <div className="flex items-center gap-2 lg:hidden">
             <ThemeToggle />
+            <Link
+              to={isAuthenticated ? "/admin/dashboard" : "/admin/login"}
+              id="mobile-navbar-login-btn"
+              title={isAuthenticated ? "Admin Dashboard" : "Admin Login"}
+              aria-label={isAuthenticated ? "Admin Dashboard" : "Admin Login"}
+              className="p-2.5 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-white/80 dark:bg-purple-950/40 text-slate-700 dark:text-purple-200 hover:text-purple-600"
+            >
+              {isAuthenticated ? (
+                <LayoutDashboard className="w-5 h-5 text-[#9B7EDE]" />
+              ) : (
+                <LogIn className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              )}
+            </Link>
             <button
               onClick={() => setIsOpen(!isOpen)}
               id="mobile-menu-toggle"
