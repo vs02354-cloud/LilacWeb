@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet, useLocation, Navigate } from 'rea
 import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Common Public Components
 import Navbar from './components/common/Navbar';
@@ -65,45 +66,47 @@ function App() {
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <ScrollToTop />
-            <Routes>
-              {/* Public Routes with Navbar & Footer */}
-              <Route element={<PublicLayout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/services" element={<Services />} />
-                <Route path="/services/:slug" element={<ServiceDetail />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/portfolio/:slug" element={<ProjectDetail />} />
-                <Route path="/blog" element={<Blog />} />
-                <Route path="/blog/:slug" element={<BlogDetail />} />
-                <Route path="/careers" element={<Careers />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/quote" element={<RequestQuote />} />
-                <Route path="/request-quote" element={<RequestQuote />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsOfService />} />
-              </Route>
+          <ErrorBoundary>
+            <BrowserRouter>
+              <ScrollToTop />
+              <Routes>
+                {/* Public Routes with Navbar & Footer */}
+                <Route element={<PublicLayout />}>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/services" element={<Services />} />
+                  <Route path="/services/:slug" element={<ServiceDetail />} />
+                  <Route path="/portfolio" element={<Portfolio />} />
+                  <Route path="/portfolio/:slug" element={<ProjectDetail />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/blog/:slug" element={<BlogDetail />} />
+                  <Route path="/careers" element={<Careers />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/quote" element={<RequestQuote />} />
+                  <Route path="/request-quote" element={<RequestQuote />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                </Route>
 
-              {/* Admin Auth Route */}
-              <Route path="/admin/login" element={<AdminLogin />} />
+                {/* Admin Auth Route */}
+                <Route path="/admin/login" element={<AdminLogin />} />
 
-              {/* Admin Dashboard Protected Routes */}
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="services" element={<AdminServices />} />
-                <Route path="projects" element={<AdminProjects />} />
-                <Route path="blogs" element={<AdminBlogs />} />
-                <Route path="careers" element={<AdminCareers />} />
-                <Route path="submissions" element={<AdminSubmissions />} />
-              </Route>
+                {/* Admin Dashboard Protected Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="services" element={<AdminServices />} />
+                  <Route path="projects" element={<AdminProjects />} />
+                  <Route path="blogs" element={<AdminBlogs />} />
+                  <Route path="careers" element={<AdminCareers />} />
+                  <Route path="submissions" element={<AdminSubmissions />} />
+                </Route>
 
-              {/* Catch-all 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+                {/* Catch-all 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
     </HelmetProvider>

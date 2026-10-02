@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'today', 'pending', 'followup', 'completed'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -21,11 +22,15 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const res = await dashboardApi.getStats();
-      if (res.success) {
+      if (res && res.success) {
         setStats(res.data);
+        setError(null);
+      } else {
+        setError(res?.message || 'Failed to load telemetry data');
       }
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
+      setError(err?.message || 'Could not connect to backend service');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,18 +72,20 @@ const AdminDashboard = () => {
   };
 
   // Filter submissions
-  const allSubmissions = stats?.submissions || [];
+  const allSubmissions = Array.isArray(stats?.submissions) ? stats.submissions : [];
   const filteredSubmissions = allSubmissions.filter((item) => {
+    if (!item) return false;
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch = 
-      item.trackingCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.titleOrService.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.trackingCode || '').toLowerCase().includes(q) ||
+      (item.clientName || '').toLowerCase().includes(q) ||
+      (item.email || '').toLowerCase().includes(q) ||
+      (item.organization || '').toLowerCase().includes(q) ||
+      (item.titleOrService || '').toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
 
-    if (activeFilter === 'today') return item.isToday;
+    if (activeFilter === 'today') return !!item.isToday;
     if (activeFilter === 'pending') return item.stage === 'Pending';
     if (activeFilter === 'followup') return item.stage === 'FollowUp';
     if (activeFilter === 'completed') return item.stage === 'Completed';
@@ -91,16 +98,18 @@ const AdminDashboard = () => {
     completedToday: 0,
     currentlyPending: 0,
     inFollowUpStage: 0,
-    completionRate: 100
+    completionRate: 0
   };
 
-  const weeklyTrend = stats?.weeklyTrend || [];
-  const maxWeeklyCount = Math.max(...weeklyTrend.map(t => Math.max(t.received, t.completed, 1)), 5);
+  const weeklyTrend = Array.isArray(stats?.weeklyTrend) ? stats.weeklyTrend : [];
+  const maxWeeklyCount = weeklyTrend.length > 0
+    ? Math.max(...weeklyTrend.map(t => Math.max(t?.received || t?.Received || 0, t?.completed || t?.Completed || 0, 1)), 5)
+    : 5;
 
   const totalCount = allSubmissions.length;
-  const pendingCount = allSubmissions.filter(x => x.stage === 'Pending').length;
-  const followUpCount = allSubmissions.filter(x => x.stage === 'FollowUp').length;
-  const completedCount = allSubmissions.filter(x => x.stage === 'Completed').length;
+  const pendingCount = allSubmissions.filter(x => x?.stage === 'Pending').length;
+  const followUpCount = allSubmissions.filter(x => x?.stage === 'FollowUp').length;
+  const completedCount = allSubmissions.filter(x => x?.stage === 'Completed').length;
 
   if (loading && !stats) {
     return (
@@ -150,6 +159,22 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* Optional Error Alert Banner */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold cursor-pointer text-xs"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* 4 PRIMARY OPERATIONAL STATUS CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -313,44 +338,55 @@ const AdminDashboard = () => {
 
             {/* SVG Visual Bar Chart */}
             <div className="h-52 w-full flex items-end justify-between gap-2 sm:gap-4 pt-4 px-2 border-b border-slate-100 dark:border-purple-900/20">
-              {weeklyTrend.map((dayItem, idx) => {
-                const receivedHeight = Math.max(Math.round((dayItem.received / maxWeeklyCount) * 160), 8);
-                const completedHeight = Math.max(Math.round((dayItem.completed / maxWeeklyCount) * 160), 4);
-                const isCurrentDay = idx === weeklyTrend.length - 1;
+              {weeklyTrend.length === 0 ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-xs text-slate-400">
+                  <span>No intake data recorded in this period</span>
+                </div>
+              ) : (
+                weeklyTrend.map((dayItem, idx) => {
+                  const dayReceived = dayItem?.received ?? dayItem?.Received ?? 0;
+                  const dayCompleted = dayItem?.completed ?? dayItem?.Completed ?? 0;
+                  const receivedHeight = Math.max(Math.round((dayReceived / maxWeeklyCount) * 160), 8);
+                  const completedHeight = Math.max(Math.round((dayCompleted / maxWeeklyCount) * 160), 4);
+                  const isCurrentDay = idx === weeklyTrend.length - 1;
+                  const dayLabel = dayItem?.day || dayItem?.Day || '';
+                  const rawDate = dayItem?.date || dayItem?.Date || '';
+                  const dayOfMonth = rawDate.includes(' ') ? rawDate.split(' ')[1] : rawDate;
 
-                return (
-                  <div key={dayItem.Date} className="flex-1 flex flex-col items-center h-full justify-end group relative">
-                    {/* Hover tooltip */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-slate-900 text-white text-[10px] py-1 px-2 rounded-lg pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                      {dayItem.Date}: {dayItem.received} received, {dayItem.completed} completed
-                    </div>
+                  return (
+                    <div key={rawDate || idx} className="flex-1 flex flex-col items-center h-full justify-end group relative">
+                      {/* Hover tooltip */}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-slate-900 text-white text-[10px] py-1 px-2 rounded-lg pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                        {rawDate}: {dayReceived} received, {dayCompleted} completed
+                      </div>
 
-                    <div className="w-full max-w-[42px] flex items-end justify-center gap-1.5 h-full">
-                      {/* Received Bar */}
-                      <div 
-                        className={`w-full rounded-t-lg transition-all duration-300 ${
-                          isCurrentDay ? 'bg-gradient-to-t from-[#4B2E83] to-[#9B7EDE] shadow-md shadow-purple-500/20' : 'bg-purple-400 dark:bg-purple-900/80 hover:bg-[#9B7EDE]'
-                        }`}
-                        style={{ height: `${receivedHeight}px` }}
-                      />
-                      {/* Completed Bar */}
-                      <div 
-                        className="w-full rounded-t-lg bg-emerald-500 dark:bg-emerald-600 transition-all duration-300 hover:bg-emerald-400"
-                        style={{ height: `${completedHeight}px` }}
-                      />
-                    </div>
+                      <div className="w-full max-w-[42px] flex items-end justify-center gap-1.5 h-full">
+                        {/* Received Bar */}
+                        <div 
+                          className={`w-full rounded-t-lg transition-all duration-300 ${
+                            isCurrentDay ? 'bg-gradient-to-t from-[#4B2E83] to-[#9B7EDE] shadow-md shadow-purple-500/20' : 'bg-purple-400 dark:bg-purple-900/80 hover:bg-[#9B7EDE]'
+                          }`}
+                          style={{ height: `${receivedHeight}px` }}
+                        />
+                        {/* Completed Bar */}
+                        <div 
+                          className="w-full rounded-t-lg bg-emerald-500 dark:bg-emerald-600 transition-all duration-300 hover:bg-emerald-400"
+                          style={{ height: `${completedHeight}px` }}
+                        />
+                      </div>
 
-                    <div className="mt-2 text-center">
-                      <span className={`block text-[11px] font-bold ${isCurrentDay ? 'text-[#9B7EDE]' : 'text-slate-600 dark:text-slate-400'}`}>
-                        {dayItem.Day}
-                      </span>
-                      <span className="block text-[9px] text-slate-400">
-                        {dayItem.Date.split(' ')[1]}
-                      </span>
+                      <div className="mt-2 text-center">
+                        <span className={`block text-[11px] font-bold ${isCurrentDay ? 'text-[#9B7EDE]' : 'text-slate-600 dark:text-slate-400'}`}>
+                          {dayLabel}
+                        </span>
+                        <span className="block text-[9px] text-slate-400">
+                          {dayOfMonth}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -539,9 +575,9 @@ const AdminDashboard = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredSubmissions.map((item) => (
+                  filteredSubmissions.map((item, rowIdx) => (
                     <tr 
-                      key={item.trackingCode} 
+                      key={item.trackingCode || item.id || rowIdx} 
                       className={`hover:bg-slate-50/70 dark:hover:bg-purple-950/30 transition-colors ${
                         item.isToday ? 'bg-purple-50/30 dark:bg-purple-950/10' : ''
                       }`}
@@ -550,19 +586,21 @@ const AdminDashboard = () => {
                       <td className="py-3.5 px-5 font-mono">
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800 text-[11px]">
-                            {item.trackingCode}
+                            {item.trackingCode || 'N/A'}
                           </span>
-                          <button
-                            onClick={() => handleCopyCode(item.trackingCode)}
-                            title="Copy Tracking Code"
-                            className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                          >
-                            {copiedCode === item.trackingCode ? (
-                              <Check className="w-3 h-3 text-emerald-500" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
+                          {item.trackingCode && (
+                            <button
+                              onClick={() => handleCopyCode(item.trackingCode)}
+                              title="Copy Tracking Code"
+                              className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              {copiedCode === item.trackingCode ? (
+                                <Check className="w-3 h-3 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -570,10 +608,10 @@ const AdminDashboard = () => {
                       <td className="py-3.5 px-5">
                         <div>
                           <p className="font-bold text-slate-900 dark:text-white">
-                            {item.clientName}
+                            {item.clientName || 'Direct Client'}
                           </p>
                           <p className="text-[11px] text-slate-400">
-                            {item.organization} • {item.email}
+                            {item.organization || 'Direct'} {item.email ? `• ${item.email}` : ''}
                           </p>
                         </div>
                       </td>
@@ -581,7 +619,7 @@ const AdminDashboard = () => {
                       {/* Service / Subject */}
                       <td className="py-3.5 px-5">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-purple-950/40 text-slate-700 dark:text-purple-200 border border-slate-200 dark:border-purple-900/30">
-                          {item.titleOrService}
+                          {item.titleOrService || 'General Inquiry'}
                         </span>
                       </td>
 
