@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://lilactechsys.com/</loc><priority>1.0</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://lilactechsys.com/about</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://lilactechsys.com/services</loc><priority>0.9</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://lilactechsys.com/portfolio</loc><priority>0.8</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://lilactechsys.com/blog</loc><priority>0.8</priority><changefreq>daily</changefreq></url>
+  <url><loc>https://lilactechsys.com/careers</loc><priority>0.7</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://lilactechsys.com/contact</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://lilactechsys.com/quote</loc><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://lilactechsys.com/privacy</loc><priority>0.3</priority><changefreq>yearly</changefreq></url>
+  <url><loc>https://lilactechsys.com/terms</loc><priority>0.3</priority><changefreq>yearly</changefreq></url>
+</urlset>
