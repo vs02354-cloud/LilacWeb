@@ -3,7 +3,8 @@ import {
   Inbox, Clock, RefreshCw, CheckCircle2, ArrowRight, Eye, 
   Search, Filter, ExternalLink, Calendar, Building, DollarSign, 
   Sparkles, Layers, Briefcase, FileText, Users, AlertCircle, 
-  Copy, Check, ChevronRight, X, ArrowUpRight, ShieldCheck, Mail
+  Copy, Check, ChevronRight, X, ArrowUpRight, ShieldCheck, Mail,
+  Send, MessageSquare, Plus
 } from 'lucide-react';
 import { dashboardApi, contactApi, quoteApi } from '../../services/api';
 import SeoHelmet from '../../components/common/SeoHelmet';
@@ -14,10 +15,24 @@ const AdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'today', 'pending', 'followup', 'completed'
+  const [channelFilter, setChannelFilter] = useState('all'); // 'all', 'inquiry', 'quote', 'career'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Send an Inquiry Modal State
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
+  const [inquiryForm, setInquiryForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    subject: '',
+    message: ''
+  });
+  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [inquirySuccessMsg, setInquirySuccessMsg] = useState('');
+  const [inquiryErrorMsg, setInquiryErrorMsg] = useState('');
 
   const fetchStats = async () => {
     try {
@@ -71,8 +86,39 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCreateInquiry = async (e) => {
+    e.preventDefault();
+    setInquiryLoading(true);
+    setInquiryErrorMsg('');
+    setInquirySuccessMsg('');
+    try {
+      const res = await contactApi.submit(inquiryForm);
+      if (res && res.success) {
+        setInquirySuccessMsg('Inquiry submitted and tracked in the grid list!');
+        await fetchStats();
+        setChannelFilter('inquiry'); // automatically switch to inquiries view
+        setTimeout(() => {
+          setInquiryModalOpen(false);
+          setInquiryForm({ fullName: '', email: '', phone: '', subject: '', message: '' });
+          setInquirySuccessMsg('');
+        }, 1200);
+      } else {
+        setInquiryErrorMsg(res?.message || 'Failed to submit inquiry');
+      }
+    } catch (err) {
+      setInquiryErrorMsg(err?.message || 'Error submitting inquiry');
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
+
   // Filter submissions
   const allSubmissions = Array.isArray(stats?.submissions) ? stats.submissions : [];
+
+  const inquiryCount = allSubmissions.filter(x => x?.type?.toLowerCase() === 'inquiry').length;
+  const quoteCount = allSubmissions.filter(x => x?.type?.toLowerCase() === 'quote').length;
+  const careerCount = allSubmissions.filter(x => x?.type?.toLowerCase() === 'career').length;
+
   const filteredSubmissions = allSubmissions.filter((item) => {
     if (!item) return false;
     const q = (searchQuery || '').toLowerCase();
@@ -81,9 +127,17 @@ const AdminDashboard = () => {
       (item.clientName || '').toLowerCase().includes(q) ||
       (item.email || '').toLowerCase().includes(q) ||
       (item.organization || '').toLowerCase().includes(q) ||
-      (item.titleOrService || '').toLowerCase().includes(q);
+      (item.titleOrService || '').toLowerCase().includes(q) ||
+      (item.type || '').toLowerCase().includes(q) ||
+      (item.budgetOrScope || '').toLowerCase().includes(q) ||
+      (item.message || '').toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
+
+    // Channel filter: 'all', 'inquiry', 'quote', 'career'
+    if (channelFilter !== 'all') {
+      if (item.type?.toLowerCase() !== channelFilter.toLowerCase()) return false;
+    }
 
     if (activeFilter === 'today') return !!item.isToday;
     if (activeFilter === 'pending') return item.stage === 'Pending';
@@ -474,81 +528,160 @@ const AdminDashboard = () => {
         {/* STATUS-WISE DETAILS TABLE & WORKFLOW TRACKER */}
         <div className="bg-white dark:bg-[#0c0a1a] rounded-3xl border border-slate-200 dark:border-purple-900/30 shadow-sm overflow-hidden">
           {/* Controls Bar: Filters & Search */}
-          <div className="p-6 border-b border-slate-100 dark:border-purple-900/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold font-['Outfit'] text-slate-900 dark:text-white">
-                Tracked Codes & Inbound Pipeline
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Inspect submissions, advance workflow stages, and review client requirements.
-              </p>
+          <div className="p-6 border-b border-slate-100 dark:border-purple-900/20 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-bold font-['Outfit'] text-slate-900 dark:text-white">
+                    Tracked Codes & Inbound Pipeline
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                    {filteredSubmissions.length} active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Inspect submissions, filter by intake channel, and advance lifecycle stages.
+                </p>
+              </div>
+
+              {/* Action: Send an Inquiry Button */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => {
+                    setInquiryForm({ fullName: '', email: '', phone: '', subject: '', message: '' });
+                    setInquirySuccessMsg('');
+                    setInquiryErrorMsg('');
+                    setInquiryModalOpen(true);
+                  }}
+                  id="admin-send-inquiry-btn"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#9B7EDE] to-[#4B2E83] text-white text-xs font-semibold shadow-md shadow-purple-500/25 hover:shadow-purple-500/40 hover:opacity-95 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Send an Inquiry</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-purple-950/40 border border-slate-200 dark:border-purple-900/40 text-xs overflow-x-auto">
+            {/* Filter controls: Channels & Stages */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
+              {/* Channel / Source Filters */}
+              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-purple-950/40 border border-slate-200 dark:border-purple-900/40 text-xs overflow-x-auto">
                 <button
-                  onClick={() => setActiveFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                    activeFilter === 'all'
+                  onClick={() => setChannelFilter('all')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    channelFilter === 'all'
                       ? 'bg-white dark:bg-[#4B2E83] text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
-                  All ({totalCount})
+                  <span>All Sources</span>
+                  <span className="text-[10px] opacity-75 font-mono">({totalCount})</span>
                 </button>
                 <button
-                  onClick={() => setActiveFilter('today')}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                    activeFilter === 'today'
-                      ? 'bg-white dark:bg-[#4B2E83] text-purple-700 dark:text-purple-200 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  onClick={() => setChannelFilter('inquiry')}
+                  id="filter-send-an-inquiry-btn"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    channelFilter === 'inquiry'
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40'
                   }`}
                 >
-                  Today ({todayMetrics.receivedToday})
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Send an Inquiry</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/20">({inquiryCount})</span>
                 </button>
                 <button
-                  onClick={() => setActiveFilter('pending')}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                    activeFilter === 'pending'
-                      ? 'bg-amber-500 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  onClick={() => setChannelFilter('quote')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    channelFilter === 'quote'
+                      ? 'bg-[#9B7EDE] text-white shadow-sm'
+                      : 'text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40'
                   }`}
                 >
-                  Pending ({pendingCount})
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>Quotes (RFQs)</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/20">({quoteCount})</span>
                 </button>
                 <button
-                  onClick={() => setActiveFilter('followup')}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                    activeFilter === 'followup'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  onClick={() => setChannelFilter('career')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    channelFilter === 'career'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40'
                   }`}
                 >
-                  Follow-Up ({followUpCount})
-                </button>
-                <button
-                  onClick={() => setActiveFilter('completed')}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                    activeFilter === 'completed'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  Completed ({completedCount})
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Careers</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/20">({careerCount})</span>
                 </button>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative min-w-[220px]">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search code, client, email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
-                />
+              {/* Stage Filter & Search */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-purple-950/40 border border-slate-200 dark:border-purple-900/40 text-xs overflow-x-auto">
+                  <button
+                    onClick={() => setActiveFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                      activeFilter === 'all'
+                        ? 'bg-white dark:bg-[#4B2E83] text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    All Stages
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('today')}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                      activeFilter === 'today'
+                        ? 'bg-white dark:bg-[#4B2E83] text-purple-700 dark:text-purple-200 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Today ({todayMetrics.receivedToday})
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('pending')}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                      activeFilter === 'pending'
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Pending ({pendingCount})
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('followup')}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                      activeFilter === 'followup'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Follow-Up ({followUpCount})
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('completed')}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                      activeFilter === 'completed'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Completed ({completedCount})
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative min-w-[200px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search code, client, inquiry..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -559,8 +692,9 @@ const AdminDashboard = () => {
               <thead className="bg-slate-50 dark:bg-purple-950/30 text-slate-500 font-semibold border-b border-slate-100 dark:border-purple-900/20">
                 <tr>
                   <th className="py-3.5 px-5">Tracking Code</th>
-                  <th className="py-3.5 px-5">Client / Organization</th>
-                  <th className="py-3.5 px-5">Service / Subject</th>
+                  <th className="py-3.5 px-5">Channel / Source</th>
+                  <th className="py-3.5 px-5">Client / Inquirer</th>
+                  <th className="py-3.5 px-5">Subject / Service</th>
                   <th className="py-3.5 px-5">Time Received</th>
                   <th className="py-3.5 px-5">Current Stage</th>
                   <th className="py-3.5 px-5">Priority</th>
@@ -570,8 +704,8 @@ const AdminDashboard = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-purple-900/20">
                 {filteredSubmissions.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-14 text-center text-slate-400">
-                      No submissions found matching filter: <strong className="text-slate-600 dark:text-slate-300">{activeFilter}</strong>
+                    <td colSpan="8" className="py-14 text-center text-slate-400">
+                      No submissions found matching filters: <strong className="text-slate-600 dark:text-slate-300">{channelFilter !== 'all' ? channelFilter : activeFilter}</strong>
                     </td>
                   </tr>
                 ) : (
@@ -585,7 +719,11 @@ const AdminDashboard = () => {
                       {/* Tracking Code */}
                       <td className="py-3.5 px-5 font-mono">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800 text-[11px]">
+                          <span className={`font-bold px-2 py-1 rounded-lg border text-[11px] ${
+                            item.type?.toLowerCase() === 'inquiry'
+                              ? 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800'
+                              : 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800'
+                          }`}>
                             {item.trackingCode || 'N/A'}
                           </span>
                           {item.trackingCode && (
@@ -602,6 +740,26 @@ const AdminDashboard = () => {
                             </button>
                           )}
                         </div>
+                      </td>
+
+                      {/* Channel / Source */}
+                      <td className="py-3.5 px-5">
+                        {item.type?.toLowerCase() === 'inquiry' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shadow-xs">
+                            <Mail className="w-3 h-3 text-sky-500" />
+                            Send an Inquiry
+                          </span>
+                        ) : item.type?.toLowerCase() === 'quote' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                            <DollarSign className="w-3 h-3 text-[#9B7EDE]" />
+                            Quote Request
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            <Users className="w-3 h-3 text-amber-500" />
+                            Job Application
+                          </span>
+                        )}
                       </td>
 
                       {/* Client / Organization */}
@@ -732,12 +890,21 @@ const AdminDashboard = () => {
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-purple-900/20">
               <div className="flex items-center gap-2.5">
-                <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-lg ${
+                  selectedSubmission.type?.toLowerCase() === 'inquiry'
+                    ? 'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300'
+                    : 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                }`}>
                   {selectedSubmission.trackingCode}
                 </span>
-                <span className="text-sm font-bold font-['Outfit'] text-slate-900 dark:text-white">
-                  Submission Details
-                </span>
+                <div>
+                  <span className="text-sm font-bold font-['Outfit'] text-slate-900 dark:text-white block">
+                    {selectedSubmission.type?.toLowerCase() === 'inquiry' ? 'Inquiry Details' : 'Submission Details'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Source Channel: <strong className="text-[#9B7EDE]">{selectedSubmission.type?.toLowerCase() === 'inquiry' ? 'Send an Inquiry (Contact Form)' : (selectedSubmission.type?.toLowerCase() === 'quote' ? 'Request a Quote (RFQ)' : 'Job Application')}</strong>
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedSubmission(null)}
@@ -751,12 +918,12 @@ const AdminDashboard = () => {
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-purple-950/20 border border-slate-100 dark:border-purple-900/20">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Client Name</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Client / Inquirer</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm">{selectedSubmission.clientName}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Organization</span>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">{selectedSubmission.organization}</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm">{selectedSubmission.organization || 'Direct Prospect'}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Email Address</span>
@@ -771,16 +938,20 @@ const AdminDashboard = () => {
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Target Practice / Discipline</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">
+                  {selectedSubmission.type?.toLowerCase() === 'inquiry' ? 'Inquiry Subject' : 'Target Practice / Service'}
+                </span>
                 <p className="p-3 rounded-xl bg-slate-50 dark:bg-purple-950/20 text-slate-800 dark:text-slate-200 font-semibold">
-                  {selectedSubmission.titleOrService}
+                  {selectedSubmission.titleOrService || 'General Inquiry'}
                 </p>
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Estimated Budget / Scope Details</span>
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-purple-950/20 text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
-                  {selectedSubmission.budgetOrScope}
+                <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">
+                  {selectedSubmission.type?.toLowerCase() === 'inquiry' ? 'Inquiry Message Details' : 'Estimated Budget / Scope Details'}
+                </span>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-purple-950/20 text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed border border-slate-100 dark:border-purple-900/20">
+                  {selectedSubmission.message || selectedSubmission.budgetOrScope || 'No additional details provided.'}
                 </div>
               </div>
 
@@ -831,6 +1002,141 @@ const AdminDashboard = () => {
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SEND / LOG AN INQUIRY QUICK MODAL */}
+      {inquiryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#0c0a1a] rounded-3xl border border-slate-200 dark:border-purple-900/40 shadow-2xl w-full max-w-lg p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-purple-900/20">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs">
+                  <Mail className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold font-['Outfit'] text-slate-900 dark:text-white">
+                    Send an Inquiry
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Log and track a client inquiry directly in the operational grid list.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInquiryModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {inquirySuccessMsg && (
+              <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{inquirySuccessMsg}</span>
+              </div>
+            )}
+
+            {inquiryErrorMsg && (
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{inquiryErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateInquiry} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Client Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={inquiryForm.fullName}
+                    onChange={(e) => setInquiryForm(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="e.g. Robert Vance"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={inquiryForm.email}
+                    onChange={(e) => setInquiryForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="robert@enterprise.com"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={inquiryForm.phone}
+                    onChange={(e) => setInquiryForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+1 (555) 000-0000"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Inquiry Subject *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={inquiryForm.subject}
+                    onChange={(e) => setInquiryForm(prev => ({ ...prev, subject: e.target.value }))}
+                    placeholder="e.g. Cloud Infrastructure Architecture"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  Inquiry Message / Requirement *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={inquiryForm.message}
+                  onChange={(e) => setInquiryForm(prev => ({ ...prev, message: e.target.value }))}
+                  placeholder="Describe inquiry requirements, questions, or project timeline..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/20 text-slate-900 dark:text-white focus:outline-none focus:border-[#9B7EDE]"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-purple-900/20 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInquiryModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-purple-900/40 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={inquiryLoading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#9B7EDE] to-[#4B2E83] text-white text-xs font-semibold shadow-md shadow-purple-500/20 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{inquiryLoading ? 'Submitting...' : 'Log & Track Inquiry'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
